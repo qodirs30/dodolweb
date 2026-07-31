@@ -4,27 +4,18 @@ import { AIAnalysisResponseSchema, AIAnalysisResponse } from '@/schemas/ai-respo
 
 const API_KEY = process.env.GEMINI_API_KEY || '';
 
-// Initialize Gemini Client
-const getGeminiModel = () => {
-  if (!API_KEY) {
-    throw new Error('GEMINI_API_KEY is not defined in environment variables.');
-  }
-  const genAI = new GoogleGenerativeAI(API_KEY);
-  return genAI.getGenerativeModel({
-    model: 'gemini-3.5-flash',
-    generationConfig: {
-      responseMimeType: 'application/json',
-    },
-  });
-};
+// Priority list of Gemini models to try in case of deprecations (404) or rate/demand spikes (503)
+const MODELS_TO_TRY = ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest'];
 
 // Exponential backoff sleep helper
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const GeminiService = {
-  // Generate project analysis brief
+  // Generate project analysis brief with robust fallback routing
   async generateAnalysis(project: ProjectDocument, retries = 2, delay = 1000): Promise<AIAnalysisResponse> {
-    const model = getGeminiModel();
+    if (!API_KEY) {
+      throw new Error('GEMINI_API_KEY is not defined in environment variables.');
+    }
 
     // 1. Build the system/context prompt
     const systemPrompt = `You are a Principal Software Architect, Enterprise Solution Architect, Senior Business Analyst, and Technical Project Manager.
@@ -95,38 +86,59 @@ Please analyze this brief and output a JSON object containing:
 - stylePrompt: A comprehensive Style.md prompt (in Indonesian) specifying branding colors, layout tokens, Tailwind CSS setups, and glassmorphism/aesthetic instructions.
 - designPrompt: A comprehensive Design.md prompt (in Indonesian) specifying layout wireframes, scroll animations, section details, and design references analysis.`;
 
-    // 3. Call the API with retry wrapper
     let lastError: any = null;
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const result = await model.generateContent([
-          { text: systemPrompt },
-          { text: userPrompt },
-        ]);
 
-        const responseText = result.response.text();
-        if (!responseText) {
-          throw new Error('Received empty response from Gemini API.');
-        }
+    // Outer loop tries each model in order of priority
+    for (const modelName of MODELS_TO_TRY) {
+      console.log(`Attempting Gemini analysis with model: ${modelName}`);
+      
+      // Inner loop executes retries for the selected model
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          const genAI = new GoogleGenerativeAI(API_KEY);
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: {
+              responseMimeType: 'application/json',
+            },
+          });
 
-        // Parse and validate with Zod
-        const json = JSON.parse(responseText.trim());
-        const validated = AIAnalysisResponseSchema.parse(json);
-        
-        return validated;
-      } catch (e: any) {
-        lastError = e;
-        console.warn(`Gemini analysis attempt ${attempt + 1} failed: ${e.message}`);
-        if (attempt < retries) {
-          await sleep(delay * Math.pow(2, attempt)); // Exponential backoff
+          const result = await model.generateContent([
+            { text: systemPrompt },
+            { text: userPrompt },
+          ]);
+
+          const responseText = result.response.text();
+          if (!responseText) {
+            throw new Error('Received empty response from Gemini API.');
+          }
+
+          // Parse and validate with Zod
+          const json = JSON.parse(responseText.trim());
+          const validated = AIAnalysisResponseSchema.parse(json);
+          
+          return validated; // Success! Return immediately
+        } catch (e: any) {
+          lastError = e;
+          console.warn(`Gemini analysis with ${modelName} (attempt ${attempt + 1}) failed: ${e.message}`);
+          
+          // Switch model immediately if we get a 503 Service Unavailable / High demand spike
+          if (e.message?.includes('503') || e.message?.includes('high demand') || e.message?.includes('Unavailable')) {
+            console.warn(`Model ${modelName} is experiencing high demand. Aborting retries and moving to fallback model...`);
+            break;
+          }
+
+          if (attempt < retries) {
+            await sleep(delay * Math.pow(2, attempt)); // Exponential backoff
+          }
         }
       }
     }
 
-    throw new Error(`AI Analysis failed after ${retries + 1} attempts. Last error: ${lastError?.message}`);
+    throw new Error(`AI Analysis failed on all fallback models. Last error: ${lastError?.message}`);
   },
 
-  // Call Gemini for developer mentorship chat discussion
+  // Call Gemini for developer mentorship chat discussion with robust fallback routing
   async askMentor(
     project: ProjectDocument,
     analysis: any,
@@ -136,8 +148,6 @@ Please analyze this brief and output a JSON object containing:
     if (!API_KEY) {
       throw new Error('GEMINI_API_KEY is not defined in environment variables.');
     }
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
 
     // Construct Context Prompt
     const contextPrompt = `You are a Coding Mentor and Senior Lead Developer for an agency called AgencyEngine.
@@ -170,19 +180,35 @@ INSTRUCTIONS:
 - Respond in Indonesian (Bahasa Indonesia).
 `;
 
-    const chat = model.startChat({
-      history: [
-        { role: 'user', parts: [{ text: contextPrompt }] },
-        { role: 'model', parts: [{ text: "Siap! Saya adalah AI Coding Mentor Anda untuk proyek ini. Silakan tanyakan apa saja tentang cara membangun, menulis kode, database schema, atau integrasi teknis untuk proyek ini." }] },
-        ...history.map((h) => ({
-          role: h.role,
-          parts: [{ text: h.parts }],
-        })),
-      ],
-    });
+    let lastError: any = null;
 
-    const result = await chat.sendMessage(message);
-    const responseText = result.response.text();
-    return responseText;
+    // Try each model in sequence
+    for (const modelName of MODELS_TO_TRY) {
+      try {
+        console.log(`Attempting mentor chat with model: ${modelName}`);
+        const genAI = new GoogleGenerativeAI(API_KEY);
+        const model = genAI.getGenerativeModel({ model: modelName });
+
+        const chat = model.startChat({
+          history: [
+            { role: 'user', parts: [{ text: contextPrompt }] },
+            { role: 'model', parts: [{ text: "Siap! Saya adalah AI Coding Mentor Anda untuk proyek ini. Silakan tanyakan apa saja tentang cara membangun, menulis kode, database schema, atau integrasi teknis untuk proyek ini." }] },
+            ...history.map((h) => ({
+              role: h.role,
+              parts: [{ text: h.parts }],
+            })),
+          ],
+        });
+
+        const result = await chat.sendMessage(message);
+        const responseText = result.response.text();
+        if (responseText) return responseText;
+      } catch (e: any) {
+        lastError = e;
+        console.warn(`Mentor chat with ${modelName} failed: ${e.message}. Trying next fallback model...`);
+      }
+    }
+
+    throw new Error(`All mentor chat fallback models failed. Last error: ${lastError?.message}`);
   },
 };
