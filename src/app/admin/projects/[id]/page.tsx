@@ -54,6 +54,7 @@ import {
   Bot,
   Paperclip,
   X,
+  Edit3,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -78,6 +79,15 @@ export default function AdminProjectDetailPage() {
   const [mentorInput, setMentorInput] = useState('');
   const [isSendingMentorMsg, setIsSendingMentorMsg] = useState(false);
   const [uploadedFileContext, setUploadedFileContext] = useState<{ fileName: string; content: string } | null>(null);
+
+  // Editable prompts content states
+  const [editablePrd, setEditablePrd] = useState('');
+  const [editableStyle, setEditableStyle] = useState('');
+  const [editableDesign, setEditableDesign] = useState('');
+
+  // AI Mentor message editing states
+  const [editingMsgIndex, setEditingMsgIndex] = useState<number | null>(null);
+  const [editingMsgText, setEditingMsgText] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -120,6 +130,14 @@ export default function AdminProjectDetailPage() {
 
     loadProjectDetails();
   }, [docId, router]);
+
+  useEffect(() => {
+    if (project) {
+      setEditablePrd(getPrdPrompt());
+      setEditableStyle(getStylePrompt());
+      setEditableDesign(getDesignPrompt());
+    }
+  }, [project, aiAnalysis]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -280,6 +298,17 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
     navigator.clipboard.writeText(text);
     setCopiedType(type);
     setTimeout(() => setCopiedType(null), 2000);
+  };
+
+  const downloadMarkdownFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleMentorFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -765,28 +794,42 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
                     </div>
                     <span className="text-sm font-bold text-zinc-850 dark:text-zinc-200">PRD.md Prompt</span>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard(getPrdPrompt(), 'PRD')}
-                    className="h-8 text-xs gap-1 border-zinc-200"
-                  >
-                    {copiedType === 'PRD' ? (
-                      <>
-                        <Check className="h-3 w-3 text-green-500" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadMarkdownFile(editablePrd, 'PRD.md')}
+                      className="h-8 text-xs gap-1 border-zinc-200"
+                    >
+                      <Download className="h-3 w-3" />
+                      Download
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(editablePrd, 'PRD')}
+                      className="h-8 text-xs gap-1 border-zinc-200"
+                    >
+                      {copiedType === 'PRD' ? (
+                        <>
+                          <Check className="h-3 w-3 text-green-500" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex-1 mt-4 overflow-y-auto rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-4 text-[10px] font-mono leading-relaxed whitespace-pre-wrap select-all select-text text-zinc-700 dark:text-zinc-300">
-                  {getPrdPrompt()}
-                </div>
+                <textarea
+                  className="flex-1 w-full mt-4 p-4 rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-[10px] font-mono leading-relaxed text-zinc-700 dark:text-zinc-300 resize-none outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-800"
+                  value={editablePrd}
+                  onChange={(e) => setEditablePrd(e.target.value)}
+                  placeholder="PRD.md content..."
+                />
               </CardContent>
             </Card>
 
@@ -800,28 +843,42 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
                     </div>
                     <span className="text-sm font-bold text-zinc-850 dark:text-zinc-200">Style.md Prompt</span>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard(getStylePrompt(), 'Style')}
-                    className="h-8 text-xs gap-1 border-zinc-200"
-                  >
-                    {copiedType === 'Style' ? (
-                      <>
-                        <Check className="h-3 w-3 text-green-500" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadMarkdownFile(editableStyle, 'Style.md')}
+                      className="h-8 text-xs gap-1 border-zinc-200"
+                    >
+                      <Download className="h-3 w-3" />
+                      Download
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(editableStyle, 'Style')}
+                      className="h-8 text-xs gap-1 border-zinc-200"
+                    >
+                      {copiedType === 'Style' ? (
+                        <>
+                          <Check className="h-3 w-3 text-green-500" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex-1 mt-4 overflow-y-auto rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-4 text-[10px] font-mono leading-relaxed whitespace-pre-wrap select-all select-text text-zinc-700 dark:text-zinc-300">
-                  {getStylePrompt()}
-                </div>
+                <textarea
+                  className="flex-1 w-full mt-4 p-4 rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-[10px] font-mono leading-relaxed text-zinc-700 dark:text-zinc-300 resize-none outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-800"
+                  value={editableStyle}
+                  onChange={(e) => setEditableStyle(e.target.value)}
+                  placeholder="Style.md content..."
+                />
               </CardContent>
             </Card>
 
@@ -835,28 +892,42 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
                     </div>
                     <span className="text-sm font-bold text-zinc-850 dark:text-zinc-200">Design.md Prompt</span>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard(getDesignPrompt(), 'Design')}
-                    className="h-8 text-xs gap-1 border-zinc-200"
-                  >
-                    {copiedType === 'Design' ? (
-                      <>
-                        <Check className="h-3 w-3 text-green-500" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadMarkdownFile(editableDesign, 'Design.md')}
+                      className="h-8 text-xs gap-1 border-zinc-200"
+                    >
+                      <Download className="h-3 w-3" />
+                      Download
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(editableDesign, 'Design')}
+                      className="h-8 text-xs gap-1 border-zinc-200"
+                    >
+                      {copiedType === 'Design' ? (
+                        <>
+                          <Check className="h-3 w-3 text-green-500" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex-1 mt-4 overflow-y-auto rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-4 text-[10px] font-mono leading-relaxed whitespace-pre-wrap select-all select-text text-zinc-700 dark:text-zinc-300">
-                  {getDesignPrompt()}
-                </div>
+                <textarea
+                  className="flex-1 w-full mt-4 p-4 rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-[10px] font-mono leading-relaxed text-zinc-700 dark:text-zinc-300 resize-none outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-800"
+                  value={editableDesign}
+                  onChange={(e) => setEditableDesign(e.target.value)}
+                  placeholder="Design.md content..."
+                />
               </CardContent>
             </Card>
           </div>
@@ -883,22 +954,102 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
 
                 {/* Chat Message History */}
                 <div className="flex-1 mt-4 overflow-y-auto space-y-4 pr-1 scrollbar-thin flex flex-col">
-                  {mentorMessages.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={cn(
-                        "flex gap-3 max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed",
-                        msg.role === 'user'
-                          ? "ml-auto bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 rounded-br-none"
-                          : "bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 border border-zinc-100 dark:border-zinc-800 rounded-bl-none"
-                      )}
-                    >
-                      {msg.role === 'model' && <Bot className="h-4 w-4 shrink-0 text-blue-500 mt-0.5" />}
-                      <div className="flex-1 space-y-2 whitespace-pre-wrap">
-                        {msg.parts}
+                  {mentorMessages.map((msg, idx) => {
+                    const isUser = msg.role === 'user';
+                    const isEditing = editingMsgIndex === idx;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "flex flex-col gap-2 max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed group relative",
+                          isUser
+                            ? "ml-auto bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 rounded-br-none"
+                            : "bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 border border-zinc-100 dark:border-zinc-800 rounded-bl-none"
+                        )}
+                      >
+                        <div className="flex gap-2.5 items-start">
+                          {!isUser && <Bot className="h-4 w-4 shrink-0 text-blue-500 mt-0.5" />}
+                          
+                          <div className="flex-1 space-y-2 overflow-x-auto">
+                            {isEditing ? (
+                              <textarea
+                                className="w-full min-h-[100px] p-2 rounded-lg border border-zinc-250 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-mono text-zinc-800 dark:text-zinc-200 outline-none focus:ring-1 focus:ring-zinc-350 dark:focus:ring-zinc-800"
+                                value={editingMsgText}
+                                onChange={(e) => setEditingMsgText(e.target.value)}
+                              />
+                            ) : (
+                              <div className="whitespace-pre-wrap font-medium">{msg.parts}</div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action buttons bar */}
+                        <div className={cn(
+                          "flex items-center gap-2 mt-2 pt-2 border-t justify-end opacity-60 group-hover:opacity-100 transition-all",
+                          isUser ? "border-zinc-800" : "border-zinc-100 dark:border-zinc-850"
+                        )}>
+                          {isEditing ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  const updated = [...mentorMessages];
+                                  updated[idx].parts = editingMsgText;
+                                  setMentorMessages(updated);
+                                  setEditingMsgIndex(null);
+                                }}
+                                className={cn("h-6 px-2 gap-1 text-[10px] font-bold rounded-md", isUser ? "hover:bg-zinc-800 text-white" : "hover:bg-zinc-150")}
+                              >
+                                <Check className="h-3 w-3 text-green-500" />
+                                Simpan
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setEditingMsgIndex(null)}
+                                className={cn("h-6 px-2 gap-1 text-[10px] font-bold rounded-md", isUser ? "hover:bg-zinc-800 text-zinc-400" : "hover:bg-zinc-150")}
+                              >
+                                <X className="h-3 w-3 text-rose-500" />
+                                Batal
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingMsgIndex(idx);
+                                  setEditingMsgText(msg.parts);
+                                }}
+                                className={cn("h-6 w-6 p-0 hover:bg-zinc-150 dark:hover:bg-zinc-800 rounded-md text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-300", isUser ? "hover:bg-zinc-800 text-zinc-400" : "")}
+                              >
+                                <Edit3 className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(msg.parts, 'Pesan Mentor')}
+                                className={cn("h-6 w-6 p-0 hover:bg-zinc-150 dark:hover:bg-zinc-800 rounded-md text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-300", isUser ? "hover:bg-zinc-800 text-zinc-400" : "")}
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => downloadMarkdownFile(msg.parts, `AI-Mentor-Output-${idx + 1}.md`)}
+                                className={cn("h-6 w-6 p-0 hover:bg-zinc-150 dark:hover:bg-zinc-800 rounded-md text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-300", isUser ? "hover:bg-zinc-800 text-zinc-400" : "")}
+                              >
+                                <Download className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {isSendingMentorMsg && (
                     <div className="flex gap-3 max-w-[85%] bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-2xl rounded-bl-none p-4 text-xs leading-relaxed items-center">
                       <Loader2 className="h-4 w-4 text-blue-500 animate-spin shrink-0" />
