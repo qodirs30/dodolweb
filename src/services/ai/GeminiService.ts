@@ -5,7 +5,7 @@ import { AIAnalysisResponseSchema, AIAnalysisResponse } from '@/schemas/ai-respo
 const API_KEY = process.env.GEMINI_API_KEY || '';
 
 // Priority list of Gemini models to try in case of deprecations (404) or rate/demand spikes (503)
-const MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+const MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-3.5-flash'];
 
 // Exponential backoff sleep helper
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
