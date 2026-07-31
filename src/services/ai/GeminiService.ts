@@ -11,7 +11,7 @@ const getGeminiModel = () => {
   }
   const genAI = new GoogleGenerativeAI(API_KEY);
   return genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-3.5-flash',
     generationConfig: {
       responseMimeType: 'application/json',
     },
@@ -90,7 +90,10 @@ Please analyze this brief and output a JSON object containing:
 - clientExpectation: Client price/expectations sensitivity ("High", "Medium", "Low").
 - estimatedPriceRange: Price estimation based on features.
 - priority: Project urgency rating ("Low", "Medium", "High", "Urgent").
-- confidence: Score from 0-100 indicating your confidence in this estimation.`;
+- confidence: Score from 0-100 indicating your confidence in this estimation.
+- prdPrompt: A highly optimized, detailed developer PRD.md prompt (in Indonesian) that can be pasted into AI agents (like Claude Code, Cursor, Codex) to build the website's pages, folder structures, APIs, and Firestore database schemas.
+- stylePrompt: A comprehensive Style.md prompt (in Indonesian) specifying branding colors, layout tokens, Tailwind CSS setups, and glassmorphism/aesthetic instructions.
+- designPrompt: A comprehensive Design.md prompt (in Indonesian) specifying layout wireframes, scroll animations, section details, and design references analysis.`;
 
     // 3. Call the API with retry wrapper
     let lastError: any = null;
@@ -134,7 +137,7 @@ Please analyze this brief and output a JSON object containing:
       throw new Error('GEMINI_API_KEY is not defined in environment variables.');
     }
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
 
     // Construct Context Prompt
     const contextPrompt = `You are a Coding Mentor and Senior Lead Developer for an agency called AgencyEngine.
