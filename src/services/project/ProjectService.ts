@@ -111,6 +111,29 @@ export interface UploadItem {
   deletedAt?: any;
 }
 
+// Helper to recursively remove undefined fields for Firestore safety
+export function sanitizeFirestoreData(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (obj instanceof Date) return obj;
+  // Leave Firestore FieldValue, Timestamp, etc. as-is
+  if (typeof obj === 'object' && obj.constructor && obj.constructor.name !== 'Object' && !Array.isArray(obj)) {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeFirestoreData);
+  }
+  if (typeof obj === 'object') {
+    const clean: any = {};
+    for (const key in obj) {
+      if (obj[key] !== undefined) {
+        clean[key] = sanitizeFirestoreData(obj[key]);
+      }
+    }
+    return clean;
+  }
+  return obj;
+}
+
 // Helper to generate a Human-Readable Project ID
 export function generateHumanProjectId(): string {
   const date = new Date();
@@ -188,7 +211,7 @@ export const ProjectService = {
     };
 
     // Save project document
-    const docRef = await addDoc(collection(db, 'projects'), projectDocData);
+    const docRef = await addDoc(collection(db, 'projects'), sanitizeFirestoreData(projectDocData));
 
     // Save initial history record
     await addDoc(collection(db, 'projects', docRef.id, 'history'), {
