@@ -11,23 +11,58 @@ const MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-3.5-flash'];
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const GeminiService = {
-  // Generate project analysis brief with robust fallback routing
+  // Generate project analysis brief with robust fallback routing and strict JSON schema
   async generateAnalysis(project: ProjectDocument, retries = 2, delay = 1000): Promise<AIAnalysisResponse> {
     if (!API_KEY) {
       throw new Error('GEMINI_API_KEY is not defined in environment variables.');
     }
 
-    // 1. Build the system/context prompt
+    // 1. Build the system/context prompt with the exact TypeScript interface schema
     const systemPrompt = `You are a Principal Software Architect, Enterprise Solution Architect, Senior Business Analyst, and Technical Project Manager.
-Your task is to analyze the following Website Project Brief submitted by a client and return a structured JSON response.
+Your task is to analyze the Website Project Brief submitted by a client and return a structured JSON response matching the following TypeScript interface definition exactly:
 
-You MUST follow this schema exactly.
+interface AIAnalysisResponse {
+  summary: string; // A 2-sentence professional executive summary.
+  businessOverview: string; // Detailed summary of client business model.
+  websiteGoal: string; // Main goal the website aims to solve.
+  targetAudience: string[]; // Identified demographic/target groups.
+  projectReadiness: number; // A score from 0-100 indicating how complete client assets are (logo, guideline, description).
+  complexity: 'Easy' | 'Medium' | 'Complex' | 'Enterprise';
+  estimatedDuration: number; // Estimated working days (number) required to build this. Minimum 1.
+  estimatedDifficulty: string; // Text explanation of complexity factors.
+  recommendedPages: string[]; // List of specific page names.
+  recommendedFeatures: string[]; // List of specific functional components needed.
+  recommendedIntegrations: string[]; // Third party integrations (e.g. ["Midtrans", "WhatsApp API"]).
+  recommendedTechStack: string[]; // Tech recommendations as a list of strings (e.g. ["Next.js", "TailwindCSS", "React", "Node.js"]).
+  recommendedCMS: string; // Which CMS is best suited (e.g. Payload CMS, Strapi, Sanity, or None).
+  recommendedSEO: {
+    title: string; // Suggested home page title tag.
+    description: string; // Suggested home meta description.
+    keywords: string[]; // 5 target SEO keywords.
+  };
+  contentChecklist: string[]; // Key copywriting sections to draft.
+  assetChecklist: string[]; // Files the client needs to supply.
+  missingInformation: string[]; // Items the client forgot to specify.
+  followUpQuestions: string[]; // Max 10 questions to ask the client.
+  riskAnalysis: string[]; // List of technical, timeline, or budget risks.
+  developerNotes: string; // Internal technical guidelines for engineers.
+  clientExpectation: 'High' | 'Medium' | 'Low'; // Client price/expectations sensitivity.
+  estimatedPriceRange: string; // Price estimation based on features.
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent'; // Project urgency rating.
+  confidence: number; // Score from 0-100 indicating your confidence in this estimation.
+  prdPrompt: string; // A highly optimized, detailed developer PRD.md prompt (in Indonesian) that can be pasted into AI agents (like Claude Code, Cursor, Codex) to build the website's pages, folder structures, APIs, and Firestore database schemas.
+  stylePrompt: string; // A comprehensive Style.md prompt (in Indonesian) specifying branding colors, layout tokens, Tailwind CSS setups, and glassmorphism/aesthetic instructions.
+  designPrompt: string; // A comprehensive Design.md prompt (in Indonesian) specifying layout wireframes, scroll animations, section details, and design references analysis.
+}
+
 Do not output markdown code blocks.
 Do not output explanations or conversational text.
 Return ONLY raw JSON conforming to the specified structure.`;
 
     // 2. Build the client data details prompt
-    const userPrompt = `PROJECT BRIEF DATA:
+    const userPrompt = `Analyze this client project brief and output the conforming JSON response:
+
+PROJECT BRIEF DATA:
 Human Project ID: ${project.projectId}
 Business Name: ${project.client.company}
 Business Category: ${project.business.category}
@@ -55,36 +90,7 @@ Custom Features/Integrations Requested: ${project.features.custom || 'None'}
 PREFERRED DESIGN STYLE:
 Design Styles: ${project.design.style.join(', ')}
 Design References/Websites: ${project.design.references || 'None listed'}
-Animation Preference: ${project.design.animations || 'None listed'}
-
-Please analyze this brief and output a JSON object containing:
-- summary: A 2-sentence professional executive summary.
-- businessOverview: Detailed summary of client business model.
-- websiteGoal: Main goal the website aims to solve.
-- targetAudience: Identified demographic/target groups.
-- projectReadiness: A score from 0-100 indicating how complete client assets are (logo, guideline, description).
-- complexity: "Easy", "Medium", "Complex", or "Enterprise".
-- estimatedDuration: Estimated working days (number) required to build this.
-- estimatedDifficulty: Text explanation of complexity factors.
-- recommendedPages: List of specific pages the website should have (e.g. Home, About, Checkout).
-- recommendedFeatures: List of specific functional components needed.
-- recommendedIntegrations: Third party integrations (e.g. Midtrans, Google Analytics, Mailchimp).
-- recommendedTechStack: Tech recommendations (e.g. Next.js, React, Tailwind, Node.js).
-- recommendedCMS: Which CMS is best suited (e.g. Payload CMS, Strapi, Sanity, or None).
-- recommendedSEO: Title tag recommendation, meta description, and 5 target keywords.
-- contentChecklist: Key copywriting sections to draft.
-- assetChecklist: Files the client needs to supply.
-- missingInformation: Items the client forgot to specify.
-- followUpQuestions: Max 10 questions to ask the client.
-- riskAnalysis: Technical, timeline, or budget risks.
-- developerNotes: Internal technical guidelines for engineers.
-- clientExpectation: Client price/expectations sensitivity ("High", "Medium", "Low").
-- estimatedPriceRange: Price estimation based on features.
-- priority: Project urgency rating ("Low", "Medium", "High", "Urgent").
-- confidence: Score from 0-100 indicating your confidence in this estimation.
-- prdPrompt: A highly optimized, detailed developer PRD.md prompt (in Indonesian) that can be pasted into AI agents (like Claude Code, Cursor, Codex) to build the website's pages, folder structures, APIs, and Firestore database schemas.
-- stylePrompt: A comprehensive Style.md prompt (in Indonesian) specifying branding colors, layout tokens, Tailwind CSS setups, and glassmorphism/aesthetic instructions.
-- designPrompt: A comprehensive Design.md prompt (in Indonesian) specifying layout wireframes, scroll animations, section details, and design references analysis.`;
+Animation Preference: ${project.design.animations || 'None listed'}`;
 
     let lastError: any = null;
 
