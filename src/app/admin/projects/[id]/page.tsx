@@ -45,8 +45,16 @@ import {
   ArrowLeft,
   ChevronRight,
   ExternalLink,
+  Terminal,
+  Palette,
+  LayoutTemplate,
+  Copy,
+  Check,
+  Send,
+  Bot,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export default function AdminProjectDetailPage() {
   const { id: docId } = useParams() as { id: string };
@@ -57,6 +65,16 @@ export default function AdminProjectDetailPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [aiAnalysis, setAiAnalysis] = useState<any | null>(null);
+
+  // AI Prompts states
+  const [copiedType, setCopiedType] = useState<string | null>(null);
+
+  // AI Mentor states
+  const [mentorMessages, setMentorMessages] = useState<{ role: 'user' | 'model'; parts: string }[]>([
+    { role: 'model', parts: 'Siap! Saya adalah AI Coding Mentor Anda untuk proyek ini. Silakan tanyakan apa saja tentang cara membangun, menulis kode, database schema, atau integrasi teknis untuk proyek ini.' }
+  ]);
+  const [mentorInput, setMentorInput] = useState('');
+  const [isSendingMentorMsg, setIsSendingMentorMsg] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -173,6 +191,129 @@ export default function AdminProjectDetailPage() {
     }
   };
 
+  // Prompt generator functions
+  const getPrdPrompt = () => {
+    if (!project) return '';
+    return `# PRD - ${project.client.company || project.client.name}
+## 1. DESKRIPSI BISNIS & PROYEK
+* Nama Bisnis: ${project.client.company || project.client.name}
+* Kategori: ${project.business.category || '—'}
+* Lokasi: ${project.business.location || '—'}
+* Ukuran Bisnis: ${project.business.companySize || '—'}
+* Deskripsi: ${project.business.description || '—'}
+
+## 2. SPESIFIKASI PROYEK
+* Tipe Website: ${project.project.websiteType || '—'}
+* Estimasi Budget: ${project.project.budget || '—'}
+* Target Launch: ${project.project.deadline || '—'}
+* Status Domain/Hosting: ${project.answers.domain_status || '—'}
+* Pemeliharaan (Maintenance): ${project.answers.website_maintenance || '—'}
+* Target Audiens: ${project.project.targetAudience?.join(', ') || '—'}
+* Kompetitor: ${project.project.competitors || '—'}
+
+## 3. FITUR & INTEGRASI
+* Fitur Terpilih: ${project.features.selected?.join(', ') || '—'}
+* Fitur Kustom: ${project.features.custom || '—'}
+* Google Drive Aset: ${project.answers.assets_drive_link || '—'}
+
+## 4. STRUKTUR HALAMAN & TEKNIS (AI RECOMMENDATION)
+${aiAnalysis ? `* Halaman yang dibutuhkan:
+${aiAnalysis.recommendedPages?.map((p: any) => `- ${p.name || p}: ${p.description || ''}`).join('\n')}
+
+* Rekomendasi Tech Stack:
+- Core: ${aiAnalysis.recommendedTechStack || 'Next.js, TailwindCSS, React'}
+- CMS: ${aiAnalysis.recommendedCMS || 'Payload CMS / Strapi'}
+- Integrasi: ${aiAnalysis.recommendedIntegrations?.join(', ') || '—'}
+- SEO Keywords: ${aiAnalysis.recommendedSEO?.keywords?.join(', ') || '—'}
+` : '*Lakukan Analisis AI terlebih dahulu di tab "AI Analysis" untuk mendapatkan rekomendasi halaman.*'}
+
+## 5. INSTRUKSI AI DEVELOPER (VIBE CODING PROMPT)
+Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Router, TailwindCSS, dan TypeScript. Rancang arsitektur folder modular yang bersih, pastikan layout responsif, buat database schema terstruktur untuk fitur dinamis, dan tambahkan transisi visual yang modern.
+`;
+  };
+
+  const getStylePrompt = () => {
+    if (!project) return '';
+    return `# STYLE.md - PANDUAN VISUAL DAN STYLING
+## 1. PALET WARNA BRAND
+* Warna Preferensi: ${project.branding.preferredColors?.join(', ') || '—'}
+
+## 2. PREFERENSI DESAIN & VISUAL
+* Gaya Estetika: ${project.design.style?.join(', ') || '—'}
+* Gaya Animasi: ${project.design.animations || '—'}
+
+## 3. ATURAN PENULISAN CSS & TAILWIND (VIBE CODING PROMPT)
+* Gunakan gaya font modern yang terintegrasi (misalnya Inter atau Outfit via Google Fonts).
+* Konfigurasikan file Tailwind CSS dengan token warna utama berdasarkan palet di atas.
+* Implementasikan efek glassmorphism kontainer untuk estetika modern jika menggunakan gaya desain premium.
+* Pastikan transisi hover, tombol interaktif, dan feedback visual lainnya terasa mulus dengan durasi standard 200ms.
+* Sediakan class helper untuk layout dinamis yang responsif di mobile (flex, grid).
+`;
+  };
+
+  const getDesignPrompt = () => {
+    if (!project) return '';
+    return `# DESIGN.md - LAYOUT & REFERENSI DESAIN
+## 1. ACUAN DESAIN UTAMA
+* Gaya Visual Pilihan: ${project.design.style?.join(', ') || '—'}
+* Animasi Transisi: ${project.design.animations || '—'}
+
+## 2. WEBSITE REFERENSI YANG DISUKAI KLIEN
+* Referensi Web: ${project.design.references || '—'}
+
+## 3. INSTRUKSI BENTUK TATA LETAK & SEKSI (VIBE CODING PROMPT)
+* Buat layout seksi Hero yang menarik, tebal, dan berfokus pada keunikan brand (USP): "${project.answers.unique_selling_point || ''}".
+* Susun seksi "Tentang Kami" yang menyajikan kisah perusahaan.
+* Buat grid portfolio atau daftar produk/layanan yang responsif dan interaktif.
+* Implementasikan layout landing page yang dioptimalkan untuk performa Core Web Vitals (LCP cepat, layout shift rendah).
+* Pastikan semua link CTA eksternal (terutama tombol chat WhatsApp) memiliki link target _blank yang aman.
+`;
+  };
+
+  const copyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedType(type);
+    setTimeout(() => setCopiedType(null), 2000);
+  };
+
+  const handleSendMentorMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!mentorInput.trim() || isSendingMentorMsg) return;
+
+    const userMessage = mentorInput;
+    setMentorInput('');
+    
+    const newMessages = [...mentorMessages, { role: 'user' as const, parts: userMessage }];
+    setMentorMessages(newMessages);
+    setIsSendingMentorMsg(true);
+
+    try {
+      const chatHistory = newMessages.slice(1, -1);
+
+      const res = await fetch('/api/mentor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          docId,
+          message: userMessage,
+          chatHistory,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.reply) {
+        setMentorMessages((prev) => [...prev, { role: 'model' as const, parts: data.reply }]);
+      } else {
+        setMentorMessages((prev) => [...prev, { role: 'model' as const, parts: 'Maaf, mentor sedang mengalami gangguan teknis. Coba lagi nanti.' }]);
+      }
+    } catch (err) {
+      console.error(err);
+      setMentorMessages((prev) => [...prev, { role: 'model' as const, parts: 'Maaf, terjadi kesalahan koneksi server saat menghubungi AI Mentor.' }]);
+    } finally {
+      setIsSendingMentorMsg(false);
+    }
+  };
+
   const getWebsiteTypeLabel = (type: string) => {
     return type?.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || '—';
   };
@@ -283,11 +424,13 @@ export default function AdminProjectDetailPage() {
 
       {/* Tab Panels */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="w-full grid grid-cols-6 rounded-xl bg-zinc-100 dark:bg-zinc-900 p-1 mb-6">
+        <TabsList className="w-full grid grid-cols-8 rounded-xl bg-zinc-100 dark:bg-zinc-900 p-1 mb-6">
           <TabsTrigger value="overview" className="rounded-lg text-xs font-semibold">Overview</TabsTrigger>
           <TabsTrigger value="brief" className="rounded-lg text-xs font-semibold">Client Brief</TabsTrigger>
           <TabsTrigger value="files" className="rounded-lg text-xs font-semibold">Files ({uploads.length})</TabsTrigger>
           <TabsTrigger value="ai" className="rounded-lg text-xs font-semibold">AI Analysis</TabsTrigger>
+          <TabsTrigger value="prompts" className="rounded-lg text-xs font-semibold">AI Prompts</TabsTrigger>
+          <TabsTrigger value="mentor" className="rounded-lg text-xs font-semibold">AI Mentor</TabsTrigger>
           <TabsTrigger value="notes" className="rounded-lg text-xs font-semibold">Notes ({notes.length})</TabsTrigger>
           <TabsTrigger value="history" className="rounded-lg text-xs font-semibold">History</TabsTrigger>
         </TabsList>
@@ -578,6 +721,215 @@ export default function AdminProjectDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* PROMPTS GENERATOR TAB */}
+        <TabsContent value="prompts">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            {/* PRD.md Panel */}
+            <Card className="rounded-2xl border border-zinc-200/60 shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col h-[550px]">
+              <CardContent className="p-6 flex flex-col h-full">
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded bg-blue-50 dark:bg-blue-950/30 text-blue-500">
+                      <Terminal className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm font-bold text-zinc-850 dark:text-zinc-200">PRD.md Prompt</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(getPrdPrompt(), 'PRD')}
+                    className="h-8 text-xs gap-1 border-zinc-200"
+                  >
+                    {copiedType === 'PRD' ? (
+                      <>
+                        <Check className="h-3 w-3 text-green-500" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="flex-1 mt-4 overflow-y-auto rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-4 text-[10px] font-mono leading-relaxed whitespace-pre-wrap select-all select-text text-zinc-700 dark:text-zinc-300">
+                  {getPrdPrompt()}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* STYLE.md Panel */}
+            <Card className="rounded-2xl border border-zinc-200/60 shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col h-[550px]">
+              <CardContent className="p-6 flex flex-col h-full">
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded bg-purple-50 dark:bg-purple-950/30 text-purple-500">
+                      <Palette className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm font-bold text-zinc-850 dark:text-zinc-200">Style.md Prompt</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(getStylePrompt(), 'Style')}
+                    className="h-8 text-xs gap-1 border-zinc-200"
+                  >
+                    {copiedType === 'Style' ? (
+                      <>
+                        <Check className="h-3 w-3 text-green-500" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="flex-1 mt-4 overflow-y-auto rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-4 text-[10px] font-mono leading-relaxed whitespace-pre-wrap select-all select-text text-zinc-700 dark:text-zinc-300">
+                  {getStylePrompt()}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* DESIGN.md Panel */}
+            <Card className="rounded-2xl border border-zinc-200/60 shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col h-[550px]">
+              <CardContent className="p-6 flex flex-col h-full">
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded bg-teal-50 dark:bg-teal-950/30 text-teal-500">
+                      <LayoutTemplate className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm font-bold text-zinc-850 dark:text-zinc-200">Design.md Prompt</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(getDesignPrompt(), 'Design')}
+                    className="h-8 text-xs gap-1 border-zinc-200"
+                  >
+                    {copiedType === 'Design' ? (
+                      <>
+                        <Check className="h-3 w-3 text-green-500" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="flex-1 mt-4 overflow-y-auto rounded-xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-4 text-[10px] font-mono leading-relaxed whitespace-pre-wrap select-all select-text text-zinc-700 dark:text-zinc-300">
+                  {getDesignPrompt()}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* AI CODING MENTOR TAB */}
+        <TabsContent value="mentor">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Chat Panel */}
+            <Card className="lg:col-span-2 rounded-2xl border border-zinc-200/60 shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col h-[600px]">
+              <CardContent className="p-6 flex flex-col h-full overflow-hidden">
+                <div className="flex items-center gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 text-blue-500 rounded-xl">
+                    <Bot className="h-5 w-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-bold text-zinc-850 dark:text-zinc-200 block">AI Coding Mentor</span>
+                    <span className="text-[10px] text-green-500 font-semibold flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-ping"></span>
+                      Mentor Teknis Aktif
+                    </span>
+                  </div>
+                </div>
+
+                {/* Chat Message History */}
+                <div className="flex-1 mt-4 overflow-y-auto space-y-4 pr-1 scrollbar-thin flex flex-col">
+                  {mentorMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "flex gap-3 max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed",
+                        msg.role === 'user'
+                          ? "ml-auto bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 rounded-br-none"
+                          : "bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 border border-zinc-100 dark:border-zinc-800 rounded-bl-none"
+                      )}
+                    >
+                      {msg.role === 'model' && <Bot className="h-4 w-4 shrink-0 text-blue-500 mt-0.5" />}
+                      <div className="flex-1 space-y-2 whitespace-pre-wrap">
+                        {msg.parts}
+                      </div>
+                    </div>
+                  ))}
+                  {isSendingMentorMsg && (
+                    <div className="flex gap-3 max-w-[85%] bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-2xl rounded-bl-none p-4 text-xs leading-relaxed items-center">
+                      <Loader2 className="h-4 w-4 text-blue-500 animate-spin shrink-0" />
+                      <span className="italic text-muted-foreground animate-pulse">AI Mentor sedang merumuskan panduan coding...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Area */}
+                <form onSubmit={handleSendMentorMessage} className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex gap-2">
+                  <Input
+                    placeholder="Tanyakan rekomendasi arsitektur, schema database, atau snippet kode..."
+                    value={mentorInput}
+                    onChange={(e) => setMentorInput(e.target.value)}
+                    disabled={isSendingMentorMsg}
+                    className="flex-1 h-11 bg-white dark:bg-zinc-950"
+                  />
+                  <Button type="submit" disabled={isSendingMentorMsg || !mentorInput.trim()} className="h-11 px-5 gap-2">
+                    <Send className="h-4 w-4" />
+                    Kirim
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Quick Suggest Panel */}
+            <Card className="rounded-2xl border border-zinc-200/60 shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col h-[600px]">
+              <CardContent className="p-6 space-y-6 overflow-y-auto flex flex-col">
+                <h3 className="text-sm font-bold text-zinc-950 dark:text-zinc-100 pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                  Topik Diskusi Cepat
+                </h3>
+                <p className="text-xs text-muted-foreground leading-normal">
+                  Klik pertanyaan cepat di bawah ini untuk berdiskusi dengan AI Mentor mengenai teknis pembuatan website ini secara instan:
+                </p>
+
+                <div className="flex flex-col gap-3">
+                  {[
+                    "Bagaimana susunan struktur folder Next.js App Router terbaik untuk project ini?",
+                    "Buatkan schema koleksi Firestore untuk mendukung semua fitur yang diminta klien.",
+                    "Bagaimana cara integrasi pembayaran Midtrans / payment gateway untuk website ini?",
+                    "Bagaimana cara membuat efek glassmorphism modern di Tailwind CSS?",
+                    "Buatkan template file Tailwind CSS config untuk warna brand ini.",
+                    "Tolong analisis link asset Google Drive / referensi desain yang dikirim klien."
+                  ].map((topic, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setMentorInput(topic);
+                      }}
+                      disabled={isSendingMentorMsg}
+                      className="text-left text-xs font-semibold p-3 border border-zinc-150 dark:border-zinc-850 hover:bg-zinc-50 dark:hover:bg-zinc-950/40 rounded-xl transition-all hover:border-zinc-350 text-zinc-700 dark:text-zinc-300"
+                    >
+                      {topic}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* NOTES TAB */}

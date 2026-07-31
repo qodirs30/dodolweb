@@ -122,4 +122,64 @@ Please analyze this brief and output a JSON object containing:
 
     throw new Error(`AI Analysis failed after ${retries + 1} attempts. Last error: ${lastError?.message}`);
   },
+
+  // Call Gemini for developer mentorship chat discussion
+  async askMentor(
+    project: ProjectDocument,
+    analysis: any,
+    message: string,
+    history: { role: 'user' | 'model'; parts: string }[]
+  ): Promise<string> {
+    if (!API_KEY) {
+      throw new Error('GEMINI_API_KEY is not defined in environment variables.');
+    }
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    // Construct Context Prompt
+    const contextPrompt = `You are a Coding Mentor and Senior Lead Developer for an agency called AgencyEngine.
+Your job is to mentor developers on how to code, build, and deploy the website requested by the client.
+
+CLIENT BRIEF CONTEXT:
+- Project ID: ${project.projectId}
+- Client Name: ${project.client.name} (${project.client.company})
+- Category: ${project.business.category}
+- Description: ${project.business.description}
+- Website Type: ${project.project.websiteType}
+- Budget: ${project.project.budget}
+- Deadline: ${project.project.deadline}
+- Features: ${project.features.selected.join(', ')}
+- Custom Features: ${project.features.custom || 'None'}
+- Colors: ${project.branding.preferredColors?.join(', ') || 'None listed'}
+- Design Style: ${project.design.style.join(', ')}
+- Animations: ${project.design.animations || 'None'}
+- Reference Sites: ${project.design.references || 'None'}
+- Google Drive Links: ${project.answers.assets_drive_link || 'None'}
+
+AI ARCHITECT ANALYSIS:
+${analysis ? JSON.stringify(analysis, null, 2) : 'No AI Analysis generated yet.'}
+
+INSTRUCTIONS:
+- You must provide practical, coding-focused mentorship.
+- Give concrete code snippets (React, Next.js, Tailwind, etc.) when requested.
+- Provide advice on folder structures, database schemas (Firestore), security rules, APIs, and deployments.
+- Suggest solutions to integrate third-party APIs (Midtrans, WhatsApp, Maps).
+- Respond in Indonesian (Bahasa Indonesia).
+`;
+
+    const chat = model.startChat({
+      history: [
+        { role: 'user', parts: [{ text: contextPrompt }] },
+        { role: 'model', parts: [{ text: "Siap! Saya adalah AI Coding Mentor Anda untuk proyek ini. Silakan tanyakan apa saja tentang cara membangun, menulis kode, database schema, atau integrasi teknis untuk proyek ini." }] },
+        ...history.map((h) => ({
+          role: h.role,
+          parts: [{ text: h.parts }],
+        })),
+      ],
+    });
+
+    const result = await chat.sendMessage(message);
+    const responseText = result.response.text();
+    return responseText;
+  },
 };
