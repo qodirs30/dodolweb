@@ -88,6 +88,7 @@ export default function AdminProjectDetailPage() {
   // AI Mentor message editing states
   const [editingMsgIndex, setEditingMsgIndex] = useState<number | null>(null);
   const [editingMsgText, setEditingMsgText] = useState('');
+  const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -369,6 +370,31 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
       setMentorMessages((prev) => [...prev, { role: 'model' as const, parts: 'Maaf, terjadi kesalahan koneksi server saat menghubungi AI Mentor.' }]);
     } finally {
       setIsSendingMentorMsg(false);
+    }
+  };
+
+  const handleRunAnalysis = async () => {
+    setIsRunningAnalysis(true);
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Analisis AI berhasil dijalankan!');
+        // Reload details
+        const aiDoc = await ProjectService.getAIAnalysis(docId);
+        setAiAnalysis(aiDoc);
+      } else {
+        alert(`Gagal menjalankan analisis: ${data.error || data.warning}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Terjadi kesalahan koneksi saat menjalankan analisis AI.');
+    } finally {
+      setIsRunningAnalysis(false);
     }
   };
 
@@ -769,12 +795,25 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
               ) : (
                 <div className="p-12 flex flex-col items-center justify-center text-center">
                   <div className="p-4 bg-zinc-50 dark:bg-zinc-850 rounded-full text-zinc-400 mb-4">
-                    <Sparkles className="h-8 w-8" />
+                    <Sparkles className="h-8 w-8 text-blue-500 animate-pulse" />
                   </div>
-                  <h4 className="font-bold text-sm">No AI Summary Completed</h4>
-                  <p className="text-xs text-muted-foreground max-w-xs mt-1.5 leading-normal">
-                    AI project analysis runs automatically on backend submission. This project has not been processed.
+                  <h4 className="font-bold text-sm">Belum Ada Analisis AI</h4>
+                  <p className="text-xs text-muted-foreground max-w-xs mt-1.5 mb-5 leading-normal">
+                    Analisis AI untuk proyek ini belum selesai atau gagal dianalisis menggunakan model lama. Klik tombol di bawah untuk menjalankan analisis ulang dengan Gemini 3.5.
                   </p>
+                  <Button onClick={handleRunAnalysis} disabled={isRunningAnalysis} className="gap-2 rounded-xl h-10 px-5 font-semibold shadow-sm">
+                    {isRunningAnalysis ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                        Sedang Menganalisis...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 text-white" />
+                        Jalankan Analisis AI Baru
+                      </>
+                    )}
+                  </Button>
                 </div>
               )}
             </CardContent>
