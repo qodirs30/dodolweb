@@ -52,6 +52,8 @@ import {
   Check,
   Send,
   Bot,
+  Paperclip,
+  X,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -75,6 +77,7 @@ export default function AdminProjectDetailPage() {
   ]);
   const [mentorInput, setMentorInput] = useState('');
   const [isSendingMentorMsg, setIsSendingMentorMsg] = useState(false);
+  const [uploadedFileContext, setUploadedFileContext] = useState<{ fileName: string; content: string } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -193,6 +196,7 @@ export default function AdminProjectDetailPage() {
 
   // Prompt generator functions
   const getPrdPrompt = () => {
+    if (aiAnalysis?.prdPrompt) return aiAnalysis.prdPrompt;
     if (!project) return '';
     return `# PRD - ${project.client.company || project.client.name}
 ## 1. DESKRIPSI BISNIS & PROYEK
@@ -233,6 +237,7 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
   };
 
   const getStylePrompt = () => {
+    if (aiAnalysis?.stylePrompt) return aiAnalysis.stylePrompt;
     if (!project) return '';
     return `# STYLE.md - PANDUAN VISUAL DAN STYLING
 ## 1. PALET WARNA BRAND
@@ -252,6 +257,7 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
   };
 
   const getDesignPrompt = () => {
+    if (aiAnalysis?.designPrompt) return aiAnalysis.designPrompt;
     if (!project) return '';
     return `# DESIGN.md - LAYOUT & REFERENSI DESAIN
 ## 1. ACUAN DESAIN UTAMA
@@ -276,27 +282,50 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
     setTimeout(() => setCopiedType(null), 2000);
   };
 
+  const handleMentorFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        setUploadedFileContext({
+          fileName: file.name,
+          content: text,
+        });
+      };
+      reader.readAsText(file);
+    }
+  };
+
   const handleSendMentorMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!mentorInput.trim() || isSendingMentorMsg) return;
+    if ((!mentorInput.trim() && !uploadedFileContext) || isSendingMentorMsg) return;
 
-    const userMessage = mentorInput;
+    let userMessage = mentorInput;
+    let displayMessage = mentorInput;
+
+    if (uploadedFileContext) {
+      userMessage = `Berikut adalah file referensi tambahan yang saya unggah:\nNama File: ${uploadedFileContext.fileName}\nIsi File:\n\`\`\`\n${uploadedFileContext.content}\n\`\`\`\n\nPertanyaan/Instruksi saya: ${userMessage || 'Tolong pelajari file di atas.'}`;
+      displayMessage = `📎 File Terlampir: ${uploadedFileContext.fileName}\n\n${mentorInput || 'Mempelajari file ini...'}`;
+      setUploadedFileContext(null);
+    }
+
     setMentorInput('');
     
-    const newMessages = [...mentorMessages, { role: 'user' as const, parts: userMessage }];
+    const newMessages = [...mentorMessages, { role: 'user' as const, parts: displayMessage }];
     setMentorMessages(newMessages);
     setIsSendingMentorMsg(true);
 
     try {
-      const chatHistory = newMessages.slice(1, -1);
-
+      const apiHistory = newMessages.slice(1, -1);
+      
       const res = await fetch('/api/mentor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           docId,
           message: userMessage,
-          chatHistory,
+          chatHistory: apiHistory,
         }),
       });
 
@@ -879,18 +908,53 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
                 </div>
 
                 {/* Input Area */}
-                <form onSubmit={handleSendMentorMessage} className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex gap-2">
-                  <Input
-                    placeholder="Tanyakan rekomendasi arsitektur, schema database, atau snippet kode..."
-                    value={mentorInput}
-                    onChange={(e) => setMentorInput(e.target.value)}
-                    disabled={isSendingMentorMsg}
-                    className="flex-1 h-11 bg-white dark:bg-zinc-950"
-                  />
-                  <Button type="submit" disabled={isSendingMentorMsg || !mentorInput.trim()} className="h-11 px-5 gap-2">
-                    <Send className="h-4 w-4" />
-                    Kirim
-                  </Button>
+                <form onSubmit={handleSendMentorMessage} className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex flex-col gap-2">
+                  {uploadedFileContext && (
+                    <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 px-3 py-1.5 rounded-lg text-xs font-semibold">
+                      <span className="flex items-center gap-1.5 text-zinc-650 dark:text-zinc-300">
+                        <Paperclip className="h-3.5 w-3.5 text-zinc-400" />
+                        {uploadedFileContext.fileName} (siap kirim)
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setUploadedFileContext(null)}
+                        className="h-5 w-5 p-0 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md text-zinc-500"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      accept=".md,.txt,.json,.js,.ts,.tsx,.css"
+                      id="mentor-file-upload"
+                      className="hidden"
+                      onChange={handleMentorFileUpload}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isSendingMentorMsg}
+                      onClick={() => document.getElementById('mentor-file-upload')?.click()}
+                      className="h-11 w-11 p-0 border-zinc-200 dark:border-zinc-800 rounded-xl"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      placeholder="Tanyakan rekomendasi arsitektur, schema database, atau lampirkan file .md..."
+                      value={mentorInput}
+                      onChange={(e) => setMentorInput(e.target.value)}
+                      disabled={isSendingMentorMsg}
+                      className="flex-1 h-11 bg-white dark:bg-zinc-950"
+                    />
+                    <Button type="submit" disabled={isSendingMentorMsg || (!mentorInput.trim() && !uploadedFileContext)} className="h-11 px-5 gap-2">
+                      <Send className="h-4 w-4" />
+                      Kirim
+                    </Button>
+                  </div>
                 </form>
               </CardContent>
             </Card>
