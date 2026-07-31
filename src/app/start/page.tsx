@@ -72,7 +72,7 @@ export default function StartBriefPage() {
         if (sanitizedAnswers[field]) {
           // Replace raw File list with placeholder to denote presence
           sanitizedAnswers[field] = Array.isArray(sanitizedAnswers[field])
-            ? sanitizedAnswers[field].map((f: File) => f.name)
+            ? sanitizedAnswers[field].filter((f: any) => f instanceof File).map((f: File) => f.name)
             : [];
         }
       });
@@ -84,27 +84,33 @@ export default function StartBriefPage() {
       const uploadPromises: Promise<any>[] = [];
 
       if (Array.isArray(allAnswers.upload_logo_files)) {
-        allAnswers.upload_logo_files.forEach((file: File) => {
-          uploadPromises.push(
-            StorageService.uploadFile(docId, projectId, file, 'logo', 'Client')
-          );
-        });
+        allAnswers.upload_logo_files
+          .filter((file: any) => file instanceof File)
+          .forEach((file: File) => {
+            uploadPromises.push(
+              StorageService.uploadFile(docId, projectId, file, 'logo', 'Client')
+            );
+          });
       }
 
       if (Array.isArray(allAnswers.upload_brand_guidelines_files)) {
-        allAnswers.upload_brand_guidelines_files.forEach((file: File) => {
-          uploadPromises.push(
-            StorageService.uploadFile(docId, projectId, file, 'brand-guide', 'Client')
-          );
-        });
+        allAnswers.upload_brand_guidelines_files
+          .filter((file: any) => file instanceof File)
+          .forEach((file: File) => {
+            uploadPromises.push(
+              StorageService.uploadFile(docId, projectId, file, 'brand-guide', 'Client')
+            );
+          });
       }
 
       if (Array.isArray(allAnswers.upload_reference_assets)) {
-        allAnswers.upload_reference_assets.forEach((file: File) => {
-          uploadPromises.push(
-            StorageService.uploadFile(docId, projectId, file, 'reference', 'Client')
-          );
-        });
+        allAnswers.upload_reference_assets
+          .filter((file: any) => file instanceof File)
+          .forEach((file: File) => {
+            uploadPromises.push(
+              StorageService.uploadFile(docId, projectId, file, 'reference', 'Client')
+            );
+          });
       }
 
       // Wait for all uploads to complete

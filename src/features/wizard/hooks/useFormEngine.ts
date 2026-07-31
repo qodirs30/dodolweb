@@ -37,7 +37,14 @@ export function useFormEngine() {
         if (saved) {
           const draft: WizardDraft = JSON.parse(saved);
           if (draft.schemaVersion === SCHEMA_VERSION) {
-            reset(draft.answers);
+            const cleanAnswers = { ...draft.answers };
+            const fileFields = ['upload_logo_files', 'upload_brand_guidelines_files', 'upload_reference_assets'];
+            fileFields.forEach((field) => {
+              if (cleanAnswers[field]) {
+                cleanAnswers[field] = []; // Clear non-serializable file objects
+              }
+            });
+            reset(cleanAnswers);
             setCurrentSection(draft.currentSection);
           }
         }
