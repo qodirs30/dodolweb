@@ -203,7 +203,7 @@ export const ProjectBriefPdfDocument: React.FC<PdfTemplateProps> = ({
       <Page size="A4" style={styles.page}>
         <View style={styles.coverContainer}>
           <View style={styles.coverHeader}>
-            <Text style={styles.brandLogo}>qodirsbrief</Text>
+            <Text style={styles.brandLogo}>qRSEngine</Text>
             <Text style={styles.docType}>Project Specification Brief</Text>
           </View>
 

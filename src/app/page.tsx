@@ -19,11 +19,9 @@ export default function Home() {
       <header className="sticky top-0 z-50 w-full glass dark:dark-glass border-b border-zinc-200/50 dark:border-zinc-800/50">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-zinc-950 font-bold text-sm">
-              Ω
-            </div>
+            <img src="/logo.png" className="h-8 w-8 object-contain rounded-lg" alt="Logo" />
             <span className="font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-              qodirsbrief
+              qRSEngine
             </span>
           </Link>
           <Link href="/start">
@@ -285,7 +283,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="mt-auto py-8 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200/50 dark:border-zinc-900/60">
         <div className="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
-          <p>© {new Date().getFullYear()} qodirsbrief. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} qRSEngine. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="/admin" className="hover:text-zinc-800 dark:hover:text-zinc-200 font-semibold">
               Admin Workspace Login

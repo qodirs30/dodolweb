@@ -152,11 +152,9 @@ export default function StartBriefPage() {
         <div className="container mx-auto max-w-7xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto justify-between">
             <Link href="/" className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-zinc-950 font-bold text-xs">
-                Ω
-              </div>
+              <img src="/logo.png" className="h-7 w-7 object-contain rounded-lg" alt="Logo" />
               <span className="font-bold tracking-tight text-sm text-zinc-900 dark:text-zinc-50">
-                qodirsbrief
+                qRSEngine
               </span>
             </Link>
             <div className="flex items-center gap-2">

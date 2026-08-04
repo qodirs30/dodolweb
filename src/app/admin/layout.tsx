@@ -62,11 +62,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Mobile Header (visible only on small screens) */}
         <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-zinc-900 border-b border-zinc-200/60 dark:border-zinc-800/60 px-4 flex items-center justify-between z-30">
           <Link href="/admin" className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-zinc-950 font-bold text-xs">
-              Ω
-            </div>
+            <img src="/logo.png" className="h-7 w-7 object-contain rounded-lg" alt="Logo" />
             <span className="font-bold tracking-tight text-sm text-zinc-900 dark:text-zinc-50">
-              qodirsbrief
+              qRSEngine
             </span>
           </Link>
           <button
@@ -90,12 +88,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Sidebar Brand Logo */}
           <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-100 dark:border-zinc-850/50">
             <Link href="/admin" className="flex items-center gap-2.5 overflow-hidden">
-              <div className="h-8 w-8 rounded-lg bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-zinc-950 font-bold text-sm shrink-0">
-                Ω
-              </div>
+              <img src="/logo.png" className="h-8 w-8 object-contain rounded-lg shrink-0" alt="Logo" />
               {!collapsed && (
                 <span className="font-bold tracking-tight text-zinc-900 dark:text-zinc-50 truncate transition-all duration-300 text-sm">
-                  qodirsbrief
+                  qRSEngine
                 </span>
               )}
             </Link>
