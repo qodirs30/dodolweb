@@ -34,6 +34,7 @@ export interface ProjectBusiness {
   instagram?: string;
   facebook?: string;
   tiktok?: string;
+  mapsLink?: string;
 }
 
 export interface ProjectDetails {
@@ -165,6 +166,10 @@ export const ProjectService = {
       companySize: answers.company_size || '',
       yearsInBusiness: answers.years_in_business ? Number(answers.years_in_business) : undefined,
       website: answers.existing_website || '',
+      instagram: answers.social_instagram || '',
+      tiktok: answers.social_tiktok || '',
+      facebook: answers.social_facebook || '',
+      mapsLink: answers.google_maps_link || '',
     };
 
     const project: ProjectDetails = {

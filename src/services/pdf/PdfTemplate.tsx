@@ -280,6 +280,24 @@ export const ProjectBriefPdfDocument: React.FC<PdfTemplateProps> = ({
             <Text style={styles.metaLabel}>Business Overview</Text>
             <Text style={styles.fieldValue}>{project.business.description}</Text>
           </View>
+          {project.business.mapsLink && (
+            <View style={styles.col12}>
+              <Text style={styles.metaLabel}>Google Maps Link</Text>
+              <Text style={styles.fieldValue}>{project.business.mapsLink}</Text>
+            </View>
+          )}
+          {(project.business.instagram || project.business.tiktok || project.business.facebook) && (
+            <View style={styles.col12}>
+              <Text style={styles.metaLabel}>Social Media Links</Text>
+              <Text style={styles.fieldValue}>
+                {[
+                  project.business.instagram && `Instagram: ${project.business.instagram}`,
+                  project.business.tiktok && `TikTok: ${project.business.tiktok}`,
+                  project.business.facebook && `Facebook: ${project.business.facebook}`,
+                ].filter(Boolean).join(' • ')}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.sectionHeader}>
@@ -379,8 +397,15 @@ export const ProjectBriefPdfDocument: React.FC<PdfTemplateProps> = ({
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>04. Uploaded Assets List</Text>
+          <Text style={styles.sectionTitle}>04. Uploaded Assets & Google Drive Link</Text>
         </View>
+
+        {project.answers?.assets_drive_link && (
+          <View style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #f4f4f5' }}>
+            <Text style={styles.metaLabel}>Google Drive Link (Aset Logo & Foto)</Text>
+            <Text style={styles.fieldValue}>{project.answers.assets_drive_link}</Text>
+          </View>
+        )}
 
         {activeUploads.length > 0 ? (
           <View style={styles.bulletList}>
