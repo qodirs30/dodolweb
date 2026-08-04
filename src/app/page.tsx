@@ -23,7 +23,7 @@ export default function Home() {
               Ω
             </div>
             <span className="font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-              AgencyEngine
+              qodirsbrief
             </span>
           </Link>
           <Link href="/start">
@@ -285,7 +285,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="mt-auto py-8 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200/50 dark:border-zinc-900/60">
         <div className="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
-          <p>© {new Date().getFullYear()} AgencyEngine. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} qodirsbrief. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="/admin" className="hover:text-zinc-800 dark:hover:text-zinc-200 font-semibold">
               Admin Workspace Login

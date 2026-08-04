@@ -66,7 +66,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               Ω
             </div>
             <span className="font-bold tracking-tight text-sm text-zinc-900 dark:text-zinc-50">
-              AgencyEngine
+              qodirsbrief
             </span>
           </Link>
           <button
@@ -95,7 +95,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </div>
               {!collapsed && (
                 <span className="font-bold tracking-tight text-zinc-900 dark:text-zinc-50 truncate transition-all duration-300 text-sm">
-                  AgencyEngine
+                  qodirsbrief
                 </span>
               )}
             </Link>

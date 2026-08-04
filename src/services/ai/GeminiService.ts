@@ -156,7 +156,7 @@ Animation Preference: ${project.design.animations || 'None listed'}`;
     }
 
     // Construct Context Prompt
-    const contextPrompt = `You are a Coding Mentor and Senior Lead Developer for an agency called AgencyEngine.
+    const contextPrompt = `You are a Coding Mentor and Senior Lead Developer for an agency called qodirsbrief.
 Your job is to mentor developers on how to code, build, and deploy the website requested by the client.
 
 CLIENT BRIEF CONTEXT:

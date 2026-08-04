@@ -156,7 +156,7 @@ export default function StartBriefPage() {
                 Ω
               </div>
               <span className="font-bold tracking-tight text-sm text-zinc-900 dark:text-zinc-50">
-                AgencyEngine
+                qodirsbrief
               </span>
             </Link>
             <div className="flex items-center gap-2">
