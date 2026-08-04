@@ -12,6 +12,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { Question } from '@/types/wizard';
+import { sanitizeFirestoreData } from '../project/ProjectService';
 
 export interface BriefTemplate {
   id?: string;
@@ -26,11 +27,11 @@ export interface BriefTemplate {
 export const TemplateService = {
   // Create a new template
   async createTemplate(template: Omit<BriefTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const docRef = await addDoc(collection(db, 'templates'), {
+    const docRef = await addDoc(collection(db, 'templates'), sanitizeFirestoreData({
       ...template,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    }));
     return docRef.id;
   },
 
@@ -55,10 +56,10 @@ export const TemplateService = {
     updates: Partial<Omit<BriefTemplate, 'id' | 'createdAt' | 'updatedAt'>>
   ): Promise<void> {
     const docRef = doc(db, 'templates', id);
-    await updateDoc(docRef, {
+    await updateDoc(docRef, sanitizeFirestoreData({
       ...updates,
       updatedAt: serverTimestamp(),
-    });
+    }));
   },
 
   // Delete a template
