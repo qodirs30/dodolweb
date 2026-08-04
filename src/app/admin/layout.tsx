@@ -38,6 +38,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const navItems = [
     { label: 'Overview', href: '/admin', icon: LayoutDashboard },
     { label: 'Projects', href: '/admin/projects', icon: Briefcase },
+    { label: 'Templates', href: '/admin/templates', icon: Settings },
   ];
 
   const handleLogout = async () => {
@@ -53,6 +54,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     if (pathname === '/admin') return 'Overview';
     if (pathname === '/admin/projects') return 'Projects';
     if (pathname?.startsWith('/admin/projects/')) return 'Project Detail';
+    if (pathname === '/admin/templates') return 'Templates';
     return 'Admin';
   };
 

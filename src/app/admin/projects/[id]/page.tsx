@@ -7,6 +7,7 @@ import { ProjectService, ProjectDocument, HistoryItem, NoteItem, UploadItem } fr
 import { StorageService } from '@/services/upload/StorageService';
 import { PROJECT_STATUS_CONFIGS, ProjectStatus } from '@/constants/project-status';
 import { websiteBriefQuestions } from '@/features/wizard/configs/website-brief';
+import { Question } from '@/types/wizard';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ProjectBriefPdfDocument } from '@/services/pdf/PdfTemplate';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -99,6 +101,14 @@ export default function AdminProjectDetailPage() {
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
+  // Brief Editing states
+  const [isEditingBrief, setIsEditingBrief] = useState(false);
+  const [editedBriefAnswers, setEditedBriefAnswers] = useState<Record<string, any>>({});
+  const [editedBriefQuestions, setEditedBriefQuestions] = useState<Question[]>([]);
+  const [isAddingManualQuestion, setIsAddingManualQuestion] = useState(false);
+  const [newManualQTitle, setNewManualQTitle] = useState('');
+  const [newManualQAnswer, setNewManualQAnswer] = useState('');
+
   // Load project details
   useEffect(() => {
     async function loadProjectDetails() {
@@ -118,6 +128,8 @@ export default function AdminProjectDetailPage() {
         }
 
         setProject(projDoc);
+        setEditedBriefAnswers(projDoc.answers || {});
+        setEditedBriefQuestions(projDoc.briefQuestions || websiteBriefQuestions);
         setNotes(notesList);
         setHistory(historyList);
         setUploads(uploadsList);
@@ -414,6 +426,66 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
     });
   };
 
+  const handleSaveBrief = async () => {
+    try {
+      await ProjectService.updateProjectBrief(docId, editedBriefAnswers, editedBriefQuestions);
+      alert('Brief berhasil diperbarui!');
+      setIsEditingBrief(false);
+      const projDoc = await ProjectService.getProject(docId);
+      if (projDoc) {
+        setProject(projDoc);
+        setEditedBriefAnswers(projDoc.answers || {});
+        setEditedBriefQuestions(projDoc.briefQuestions || websiteBriefQuestions);
+      }
+    } catch (err: any) {
+      alert('Gagal menyimpan brief: ' + err.message);
+    }
+  };
+
+  const handleCancelBriefEdit = () => {
+    if (project) {
+      setEditedBriefAnswers(project.answers || {});
+      setEditedBriefQuestions(project.briefQuestions || websiteBriefQuestions);
+    }
+    setIsEditingBrief(false);
+  };
+
+  const handleAddManualQuestion = () => {
+    if (!newManualQTitle.trim()) {
+      alert('Pertanyaan tidak boleh kosong.');
+      return;
+    }
+    const qId = 'manual_' + Math.random().toString(36).substring(2, 7);
+    const newQ: Question = {
+      id: qId,
+      type: 'text',
+      title: newManualQTitle.trim(),
+      section: 'business',
+      required: false,
+    };
+
+    setEditedBriefQuestions((prev) => [...prev, newQ]);
+    setEditedBriefAnswers((prev) => ({
+      ...prev,
+      [qId]: newManualQAnswer.trim(),
+    }));
+
+    setNewManualQTitle('');
+    setNewManualQAnswer('');
+    setIsAddingManualQuestion(false);
+  };
+
+  const handleDeleteBriefQuestion = (id: string) => {
+    if (confirm('Apakah Anda yakin ingin menghapus pertanyaan ini beserta jawabannya?')) {
+      setEditedBriefQuestions((prev) => prev.filter((q) => q.id !== id));
+      setEditedBriefAnswers((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -621,35 +693,145 @@ Buatlah website lengkap dengan spesifikasi di atas menggunakan Next.js App Route
         {/* BRIEF TAB */}
         <TabsContent value="brief">
           <Card className="rounded-2xl border border-zinc-200/60 shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
-            <CardContent className="p-6 divide-y divide-zinc-100 dark:divide-zinc-800">
-              {websiteBriefQuestions.filter((q) => q.type !== 'heading' && q.type !== 'divider').map((q) => {
-                const val = project.answers[q.id];
-                const optOther = project.answers[`${q.id}_other`];
-                if (val === undefined || val === null || val === '') return null;
-
-                let outputText = String(val);
-                if (Array.isArray(val)) {
-                  outputText = val.map((v) => {
-                    const opt = q.options?.find((o) => o.value === v);
-                    return opt ? opt.label : v;
-                  }).join(', ');
-                } else if (typeof val === 'boolean') {
-                  outputText = val ? 'Yes' : 'No';
-                } else {
-                  const opt = q.options?.find((o) => o.value === val);
-                  if (opt) outputText = opt.label;
-                }
-
-                return (
-                  <div key={q.id} className="py-4 flex flex-col gap-1 first:pt-0 last:pb-0">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{q.title}</span>
-                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 leading-relaxed mt-1">
-                      {outputText}
-                      {optOther && <span className="block text-xs font-normal text-muted-foreground italic mt-1">({optOther})</span>}
-                    </span>
+            <CardContent className="p-6">
+              {!isEditingBrief ? (
+                // View Mode
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Spesifikasi Brief Klien</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditedBriefAnswers(project.answers || {});
+                        setEditedBriefQuestions(project.briefQuestions || websiteBriefQuestions);
+                        setIsEditingBrief(true);
+                      }}
+                      className="rounded-xl text-xs font-bold gap-1.5 h-8"
+                    >
+                      <Edit3 className="h-3.5 w-3.5 text-zinc-400" /> Edit Brief
+                    </Button>
                   </div>
-                );
-              })}
+
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+                    {(project.briefQuestions || websiteBriefQuestions)
+                      .filter((q) => q.type !== 'heading' && q.type !== 'divider')
+                      .map((q) => {
+                        const val = project.answers[q.id];
+                        const optOther = project.answers[`${q.id}_other`];
+                        if (val === undefined || val === null || val === '') return null;
+
+                        let outputText = String(val);
+                        if (Array.isArray(val)) {
+                          outputText = val.map((v) => {
+                            const opt = q.options?.find((o) => o.value === v);
+                            return opt ? opt.label : v;
+                          }).join(', ');
+                        } else if (typeof val === 'boolean') {
+                          outputText = val ? 'Yes' : 'No';
+                        } else {
+                          const opt = q.options?.find((o) => o.value === val);
+                          if (opt) outputText = opt.label;
+                        }
+
+                        return (
+                          <div key={q.id} className="py-4 flex flex-col gap-1 first:pt-0 last:pb-0 animate-in fade-in">
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{q.title}</span>
+                            <span className="text-sm font-semibold text-zinc-850 dark:text-zinc-200 leading-relaxed mt-1">
+                              {outputText}
+                              {optOther && <span className="block text-xs font-normal text-muted-foreground italic mt-1">({optOther})</span>}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              ) : (
+                // Edit Mode
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Edit Spesifikasi Brief</h3>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleCancelBriefEdit} className="rounded-xl text-xs font-bold h-8">
+                        Batal
+                      </Button>
+                      <Button onClick={handleSaveBrief} size="sm" className="rounded-xl text-xs font-bold h-8 bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950">
+                        Simpan Perubahan
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    {editedBriefQuestions
+                      .filter((q) => q.type !== 'heading' && q.type !== 'divider')
+                      .map((q) => {
+                        const val = editedBriefAnswers[q.id] || '';
+                        const outputVal = Array.isArray(val) ? val.join(', ') : String(val);
+                        return (
+                          <div key={q.id} className="p-4 rounded-2xl bg-zinc-50/50 dark:bg-zinc-950/20 border border-zinc-200/50 dark:border-zinc-850 flex items-start gap-4 transition-all">
+                            <div className="flex-1 space-y-2">
+                              <Label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{q.title}</Label>
+                              {q.type === 'textarea' ? (
+                                <Textarea
+                                  value={outputVal}
+                                  onChange={(e) => setEditedBriefAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                  className="text-xs rounded-xl h-20"
+                                />
+                              ) : (
+                                <Input
+                                  value={outputVal}
+                                  onChange={(e) => setEditedBriefAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                  className="text-xs rounded-xl h-9"
+                                />
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteBriefQuestion(q.id)}
+                              className="h-8 w-8 text-zinc-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg shrink-0 mt-6"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {/* Inline Add Manual Question Form */}
+                  <div className="bg-zinc-50 dark:bg-zinc-950 p-5 rounded-2xl border border-zinc-200/60 dark:border-zinc-850 space-y-4 mt-6">
+                    <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200">Tambah Pertanyaan Manual</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-zinc-400">Pertanyaan Baru</Label>
+                        <Input
+                          value={newManualQTitle}
+                          onChange={(e) => setNewManualQTitle(e.target.value)}
+                          placeholder="Contoh: Apakah butuh API khusus?"
+                          className="h-9 rounded-xl text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-zinc-400">Jawaban</Label>
+                        <Input
+                          value={newManualQAnswer}
+                          onChange={(e) => setNewManualQAnswer(e.target.value)}
+                          placeholder="Contoh: Ya, butuh API RajaOngkir."
+                          className="h-9 rounded-xl text-xs"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={handleAddManualQuestion}
+                      className="rounded-xl text-xs font-bold h-9 bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950"
+                    >
+                      + Tambahkan ke Brief
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

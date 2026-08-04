@@ -4,6 +4,7 @@ import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 import { ProjectDocument, UploadItem } from '../project/ProjectService';
 import { PROJECT_STATUS_CONFIGS } from '@/constants/project-status';
+import { websiteBriefQuestions } from '@/features/wizard/configs/website-brief';
 
 // Register a clean sans-serif font family if needed, otherwise use Helvetica/Courier/Times defaults
 // which are built into PDF format and guaranteed to work without extra network weight.
@@ -247,7 +248,7 @@ export const ProjectBriefPdfDocument: React.FC<PdfTemplateProps> = ({
 
           <View style={styles.coverFooter}>
             <Text>Confidential • Prepared for {project.client.name}</Text>
-            <Text>Page 1 of 3</Text>
+            <Text>Page 1 of 4</Text>
           </View>
         </View>
       </Page>
@@ -334,7 +335,7 @@ export const ProjectBriefPdfDocument: React.FC<PdfTemplateProps> = ({
         {/* Footer */}
         <View style={styles.footer}>
           <Text>Confidential • WPB Project ID: {project.projectId}</Text>
-          <Text>Page 2 of 3</Text>
+          <Text>Page 2 of 4</Text>
         </View>
       </Page>
 
@@ -425,7 +426,51 @@ export const ProjectBriefPdfDocument: React.FC<PdfTemplateProps> = ({
         {/* Footer */}
         <View style={styles.footer}>
           <Text>Confidential • WPB Project ID: {project.projectId}</Text>
-          <Text>Page 3 of 3</Text>
+          <Text>Page 3 of 4</Text>
+        </View>
+      </Page>
+
+      {/* PAGE 4: DETAILED QUESTIONNAIRE APPENDIX */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>05. Appendix: Complete Questionnaire Responses</Text>
+        </View>
+
+        <View style={{ gap: 8, paddingBottom: 30 }}>
+          {(project.briefQuestions || websiteBriefQuestions)
+            .filter((q) => q.type !== 'heading' && q.type !== 'divider')
+            .map((q, idx) => {
+              const val = project.answers[q.id];
+              if (val === undefined || val === null || val === '') return null;
+
+              let valStr = String(val);
+              if (Array.isArray(val)) {
+                valStr = val.map((v) => {
+                  const opt = q.options?.find((o) => o.value === v);
+                  return opt ? opt.label : v;
+                }).join(', ');
+              } else {
+                const opt = q.options?.find((o) => o.value === val);
+                if (opt) valStr = opt.label;
+              }
+
+              return (
+                <View key={q.id || idx} style={{ borderBottomWidth: 1, borderBottomColor: '#f4f4f5', paddingBottom: 4, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 7, color: '#71717a', fontWeight: 'bold' }}>
+                    {idx + 1}. {q.title}
+                  </Text>
+                  <Text style={{ fontSize: 8.5, color: '#18181b', marginTop: 1.5 }}>
+                    {valStr}
+                  </Text>
+                </View>
+              );
+            })}
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text>Confidential • WPB Project ID: {project.projectId}</Text>
+          <Text>Page 4 of 4</Text>
         </View>
       </Page>
     </Document>

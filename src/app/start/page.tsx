@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useFormEngine } from '@/features/wizard/hooks/useFormEngine';
 import { QuestionRenderer } from '@/features/wizard/components/QuestionRenderer';
-import { WIZARD_SECTIONS, WizardSection, SectionMetadata } from '@/types/wizard';
+import { WIZARD_SECTIONS, WizardSection, SectionMetadata, Question } from '@/types/wizard';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -26,6 +26,35 @@ const SectionIcon = ({ name, className }: { name: string; className?: string }) 
 
 export default function StartBriefPage() {
   const router = useRouter();
+  const [customQuestions, setCustomQuestions] = useState<Question[] | undefined>(undefined);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const tid = searchParams.get('template');
+      if (tid) {
+        setTemplateId(tid);
+        setLoadingTemplate(true);
+        // Dynamically import TemplateService to avoid static compilation errors
+        import('@/services/template/TemplateService')
+          .then(({ TemplateService }) => TemplateService.getTemplate(tid))
+          .then((tmpl) => {
+            if (tmpl && tmpl.questions) {
+              setCustomQuestions(tmpl.questions);
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to load dynamic template:', err);
+          })
+          .finally(() => {
+            setLoadingTemplate(false);
+          });
+      }
+    }
+  }, []);
+
   const {
     currentSection,
     visibleSectionQuestions,
@@ -42,12 +71,12 @@ export default function StartBriefPage() {
     goToSection,
     clearDraft,
     isLoaded,
-  } = useFormEngine();
+  } = useFormEngine(customQuestions);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  if (!isLoaded) {
+  if (!isLoaded || loadingTemplate) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 dark:bg-zinc-950">
         <div className="flex flex-col items-center gap-3">
@@ -78,7 +107,11 @@ export default function StartBriefPage() {
       });
 
       // 2. Create project document in Firestore and get Human/Doc IDs
-      const { docId, projectId } = await ProjectService.createProject(sanitizedAnswers);
+      const { docId, projectId } = await ProjectService.createProject(
+        sanitizedAnswers,
+        allQuestions,
+        templateId || undefined
+      );
 
       // 3. Upload files to Firebase Storage and write metadata to project uploads subcollection
       const uploadPromises: Promise<any>[] = [];

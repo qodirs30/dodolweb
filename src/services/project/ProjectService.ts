@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { ProjectStatus } from '@/constants/project-status';
+import { Question } from '@/types/wizard';
 
 export interface ProjectClient {
   name: string;
@@ -77,6 +78,8 @@ export interface ProjectDocument {
   features: ProjectFeatures;
   design: ProjectDesign;
   answers: Record<string, any>;
+  briefQuestions?: Question[];
+  templateId?: string;
   schemaVersion: number;
   createdAt: any;
   updatedAt: any;
@@ -147,7 +150,11 @@ export function generateHumanProjectId(): string {
 
 export const ProjectService = {
   // Create a new Project submission from the client wizard
-  async createProject(answers: Record<string, any>): Promise<{ docId: string; projectId: string }> {
+  async createProject(
+    answers: Record<string, any>,
+    briefQuestions?: Question[],
+    templateId?: string
+  ): Promise<{ docId: string; projectId: string }> {
     const humanId = generateHumanProjectId();
 
     // Map answers into structured sub-objects
@@ -209,6 +216,8 @@ export const ProjectService = {
       features,
       design,
       answers,
+      briefQuestions,
+      templateId,
       schemaVersion: 1,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -335,5 +344,63 @@ export const ProjectService = {
     const q = query(collection(db, 'projects', docId, 'uploads'), orderBy('uploadedAt', 'desc'));
     const snap = await getDocs(q);
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as UploadItem));
+  },
+
+  // Update project brief (answers and list of questions)
+  async updateProjectBrief(
+    docId: string,
+    answers: Record<string, any>,
+    briefQuestions: Question[]
+  ): Promise<void> {
+    const docRef = doc(db, 'projects', docId);
+    
+    // Build update values matching what might be in business/branding/etc. for safety
+    const updates: Record<string, any> = {
+      answers,
+      briefQuestions,
+      updatedAt: serverTimestamp(),
+    };
+
+    // Keep business, branding, features, design sub-objects synced with updated answers
+    if (answers.business_category !== undefined) updates['business.category'] = answers.business_category;
+    if (answers.business_description !== undefined) updates['business.description'] = answers.business_description;
+    if (answers.location !== undefined) updates['business.location'] = answers.location;
+    if (answers.company_size !== undefined) updates['business.companySize'] = answers.company_size;
+    if (answers.years_in_business !== undefined) updates['business.yearsInBusiness'] = answers.years_in_business ? Number(answers.years_in_business) : null;
+    if (answers.existing_website !== undefined) updates['business.website'] = answers.existing_website;
+    if (answers.social_instagram !== undefined) updates['business.instagram'] = answers.social_instagram;
+    if (answers.social_tiktok !== undefined) updates['business.tiktok'] = answers.social_tiktok;
+    if (answers.social_facebook !== undefined) updates['business.facebook'] = answers.social_facebook;
+    if (answers.google_maps_link !== undefined) updates['business.mapsLink'] = answers.google_maps_link;
+    
+    if (answers.website_type !== undefined) updates['project.websiteType'] = answers.website_type;
+    if (answers.project_deadline !== undefined) updates['project.deadline'] = answers.project_deadline;
+    if (answers.project_budget !== undefined) updates['project.budget'] = answers.project_budget;
+    if (answers.target_audience_age !== undefined) updates['project.targetAudience'] = answers.target_audience_age;
+    if (answers.competitors !== undefined) updates['project.competitors'] = answers.competitors;
+
+    if (answers.has_logo !== undefined) updates['branding.hasLogo'] = answers.has_logo;
+    if (answers.has_brand_guideline !== undefined) updates['branding.hasBrandGuideline'] = answers.has_brand_guideline;
+    if (answers.preferred_colors !== undefined) {
+      updates['branding.preferredColors'] = typeof answers.preferred_colors === 'string'
+        ? answers.preferred_colors.split(',').map((c: string) => c.trim())
+        : answers.preferred_colors;
+    }
+
+    if (answers.features_list !== undefined) updates['features.selected'] = answers.features_list;
+    if (answers.custom_features_input !== undefined) updates['features.custom'] = answers.custom_features_input;
+
+    if (answers.design_style !== undefined) updates['design.style'] = answers.design_style;
+    if (answers.reference_websites !== undefined) updates['design.references'] = answers.reference_websites;
+    if (answers.animation_preference !== undefined) updates['design.animations'] = answers.animation_preference;
+
+    await updateDoc(docRef, sanitizeFirestoreData(updates));
+
+    await addDoc(collection(db, 'projects', docId, 'history'), {
+      action: 'Project Brief Updated',
+      description: 'Project brief questions and answers were edited manually by admin.',
+      performedBy: 'Admin',
+      createdAt: serverTimestamp(),
+    });
   },
 };

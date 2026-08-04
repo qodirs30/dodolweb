@@ -9,9 +9,12 @@ import { evaluateCondition, calculateProgress } from '@/utils/wizard';
 const LOCAL_STORAGE_KEY = 'wpb_wizard_draft';
 const SCHEMA_VERSION = 1;
 
-export function useFormEngine() {
+export function useFormEngine(customQuestions?: Question[]) {
   const [currentSection, setCurrentSection] = useState<WizardSection>('welcome');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [localStorageKey, setLocalStorageKey] = useState(LOCAL_STORAGE_KEY);
+
+  const activeQuestions = customQuestions || websiteBriefQuestions;
 
   // Initialize React Hook Form
   const {
@@ -29,11 +32,16 @@ export function useFormEngine() {
 
   const allAnswers = watch();
 
-  // Load draft from local storage on mount
+  // Load draft from local storage on mount (handling dynamic template ID suffix)
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const templateId = searchParams.get('template');
+      const activeKey = templateId ? `${LOCAL_STORAGE_KEY}_${templateId}` : LOCAL_STORAGE_KEY;
+      setLocalStorageKey(activeKey);
+
       try {
-        const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+        const saved = localStorage.getItem(activeKey);
         if (saved) {
           const draft: WizardDraft = JSON.parse(saved);
           if (draft.schemaVersion === SCHEMA_VERSION) {
@@ -65,12 +73,12 @@ export function useFormEngine() {
         timestamp: Date.now(),
         schemaVersion: SCHEMA_VERSION,
       };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(draft));
+      localStorage.setItem(localStorageKey, JSON.stringify(draft));
     }
-  }, [allAnswers, currentSection, isLoaded]);
+  }, [allAnswers, currentSection, isLoaded, localStorageKey]);
 
   // Filter questions for the current section
-  const sectionQuestions = websiteBriefQuestions.filter((q) => q.section === currentSection);
+  const sectionQuestions = activeQuestions.filter((q) => q.section === currentSection);
 
   // Filter visible questions in the current section
   const visibleSectionQuestions = sectionQuestions.filter((q) =>
@@ -78,7 +86,7 @@ export function useFormEngine() {
   );
 
   // Evaluate visible questions across the whole form for progress bar
-  const progress = calculateProgress(websiteBriefQuestions, allAnswers, currentSection);
+  const progress = calculateProgress(activeQuestions, allAnswers, currentSection);
 
   // Navigation handlers
   const nextSection = async () => {
@@ -129,7 +137,7 @@ export function useFormEngine() {
 
   const clearDraft = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      localStorage.removeItem(localStorageKey);
     }
     reset({});
     setCurrentSection('welcome');
@@ -138,7 +146,7 @@ export function useFormEngine() {
   return {
     currentSection,
     visibleSectionQuestions,
-    allQuestions: websiteBriefQuestions,
+    allQuestions: activeQuestions,
     allAnswers,
     control,
     register,
